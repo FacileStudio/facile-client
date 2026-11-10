@@ -1,21 +1,34 @@
+import { parseRetryAfter } from './retry-after.js';
+
 /** The header porte requires on a cookie-authenticated mutation. porte checks presence, not value. */
 export const CSRF_HEADER = 'X-Facile-CSRF';
 
 const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** A non-2xx answer, read from the tronc envelope `{"error":{"code","message"}}`. */
+/**
+ * A non-2xx answer, read from the tronc envelope `{"error":{"code","message"}}`.
+ * `retryAfterSeconds` is the response's Retry-After header in seconds, or `null` without a valid one.
+ */
 export class ApiError extends Error {
 	readonly status: number;
 	readonly code: string;
 	readonly upgradeUrl?: string;
+	readonly retryAfterSeconds: number | null;
 
 	/** Builds the error for one failed response. `code` is empty when the body carried none. */
-	constructor(status: number, code: string, message: string, upgradeUrl?: string) {
+	constructor(
+		status: number,
+		code: string,
+		message: string,
+		upgradeUrl?: string,
+		retryAfterSeconds: number | null = null
+	) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
 		this.code = code;
 		this.upgradeUrl = upgradeUrl;
+		this.retryAfterSeconds = retryAfterSeconds;
 	}
 }
 
@@ -56,7 +69,9 @@ function parseEnvelope(body: string): Envelope {
 async function toApiError(response: Response): Promise<ApiError> {
 	const envelope = parseEnvelope(await response.text().catch(() => ''));
 	const message = text(envelope.message) || `Request failed with status ${response.status}`;
-	return new ApiError(response.status, text(envelope.code), message, text(envelope.upgrade_url) || undefined);
+	const upgradeUrl = text(envelope.upgrade_url) || undefined;
+	const retryAfter = parseRetryAfter(response.headers.get('Retry-After'));
+	return new ApiError(response.status, text(envelope.code), message, upgradeUrl, retryAfter);
 }
 
 async function readBody<T>(response: Response): Promise<T> {

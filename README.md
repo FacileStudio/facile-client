@@ -9,11 +9,48 @@ It ships no UI. Components live in [`@facile/muse`](https://github.com/FacileStu
 ## Install
 
 ```sh
-bun add "github:FacileStudio/facile-client#v0.1.0"
+bun add "github:FacileStudio/facile-client#v0.1.1"
 ```
 
 The package is consumed from source, like muse: there is no build step on install. `svelte` 5 and
 `@sveltejs/kit` 2 are peer dependencies. There are no runtime dependencies.
+
+## Adopting it
+
+Three things every adopter has hit so far.
+
+**Exclude it from Vite's dependency optimizer.** The package ships uncompiled Svelte source
+(`.svelte.ts` rune modules), like muse. Vite's pre-bundler does not run the Svelte compiler on
+it, so the runes reach the browser untransformed. Add it next to muse in `vite.config.ts`:
+
+```ts
+optimizeDeps: {
+	exclude: ['@facile/muse', '@facile/client']
+},
+```
+
+**Probe the session quietly on a public page.** A page an anonymous visitor may open (a status
+page, a landing page, `/login`) and that asks "is someone signed in?" must pass `{ quiet: true }`.
+Without it the 401 reaches `onUnauthorized`, which with `redirectToLogin` sends the visitor to
+`/login`:
+
+```ts
+const me = await api('/auth/me', {}, { quiet: true }).catch(() => null);
+```
+
+**Mock `$app/*` in bun tests.** The root entry imports `redirectToLogin`, which imports
+`$app/environment` and `$app/navigation`. Those exist only inside SvelteKit, so a `bun test` that
+imports `@facile/client`, or a module that does, fails to resolve them. Mock both, then import
+dynamically, because a static `import` runs before the mocks:
+
+```ts
+import { mock } from 'bun:test';
+
+mock.module('$app/environment', () => ({ browser: true }));
+mock.module('$app/navigation', () => ({ goto: async () => {} }));
+
+const { createApi } = await import('@facile/client');
+```
 
 ## What it does
 
@@ -32,9 +69,12 @@ The package is consumed from source, like muse: there is no build step on instal
 - Every method except `GET`, `HEAD` and `OPTIONS` carries `X-Facile-CSRF: 1`. porte
   (`porte.CSRFHeaderName`) checks that the header is present and not empty, and refuses a
   cookie mutation without it with 403.
-- A non-2xx answer throws `ApiError { status, code, message, upgradeUrl }`, read from tronc's
-  envelope `{"error":{"code","message","upgrade_url"}}`. A body that is not the envelope gives an
-  empty `code` and `Request failed with status <n>`.
+- A non-2xx answer throws `ApiError { status, code, message, upgradeUrl, retryAfterSeconds }`,
+  read from tronc's envelope `{"error":{"code","message","upgrade_url"}}`. A body that is not the
+  envelope gives an empty `code` and `Request failed with status <n>`.
+- `retryAfterSeconds` is the `Retry-After` header in seconds: a non-negative integer as sent, or an
+  HTTP date turned into the seconds from now until it, never below 0. It is `null` when the header
+  is missing or is neither. Show it on a 429's retry button instead of reading the header yourself.
 - `onUnauthorized` runs on 401 only. A 403 is a missing CSRF header or an app permission check,
   and signing in again fixes neither. Pass `{ quiet: true }` as the third argument to skip it.
 - A 204 or an empty body resolves to `undefined`. A 2xx body that is not JSON (the SPA catch-all

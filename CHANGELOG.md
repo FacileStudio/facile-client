@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- `ApiError.retryAfterSeconds: number | null`, read from the `Retry-After` header: a non-negative integer of seconds as sent, or an HTTP date as the seconds from now until it, floored at 0; `null` otherwise. The kernel dropped the header before, which kept Antenne on its own fetch code to show the delay on a button.
+
 ### Changed
+
+- The README documents what adopters hit: `@facile/client` goes in `optimizeDeps.exclude` next to muse because it ships uncompiled Svelte source, a public page that probes the session calls with `{ quiet: true }`, and a bun test that imports the root entry mocks `$app/environment` and `$app/navigation`.
 
 - `package.json` declares `"license": "MIT"`, matching `LICENSE`. The licence itself is unchanged.
 
