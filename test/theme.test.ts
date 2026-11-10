@@ -45,3 +45,24 @@ describe('createTheme', () => {
 		expect([...classes]).toEqual(['dark']);
 	});
 });
+
+describe('v0.1 default theme classes, pinned', () => {
+	test('each mode under a light and a dark OS writes exactly what v0.1.1 wrote', () => {
+		const written: string[] = [];
+		for (const os of [false, true]) {
+			prefersDark = os;
+			for (const mode of ['system', 'light', 'dark'] as const) {
+				createTheme('pin-theme').set(mode);
+				written.push(`${os ? 'dark-os' : 'light-os'} ${mode}: ${[...classes].sort().join(',')}`);
+			}
+		}
+		expect(written).toEqual([
+			'light-os system: ',
+			'light-os light: light',
+			'light-os dark: dark',
+			'dark-os system: ',
+			'dark-os light: light',
+			'dark-os dark: dark'
+		]);
+	});
+});
