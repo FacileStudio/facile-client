@@ -19,25 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party assets
-
-muse bundles no typeface.
-
-**Icon artwork is bundled** in `src/lib/icons-data.ts` — the paths for the 47 names in
-`src/lib/icons.ts`, frozen into the package so nothing is fetched from api.iconify.design at
-runtime. Both collections permit redistribution, and both require attribution:
-
-- **Solar** by 480 Design — CC BY 4.0 (CC-BY-4.0)
-  https://creativecommons.org/licenses/by/4.0/
-- **Material Design Icons** by Pictogrammers — Apache 2.0 (Apache-2.0)
-  https://github.com/Templarian/MaterialDesign/blob/master/LICENSE
-
-`scripts/build-icons.ts` refuses to bundle a collection whose licence metadata it cannot read,
-and `icon-data.test.ts` fails the build if a bundled collection is not credited here.
-
-If a typeface is reintroduced, record its licence here before the files are committed, and
-keep `src/lib/styles/fonts.test.ts` passing — muse is distributed to every Facile app, so a
-font added to this repo is a font redistributed thirteen times over.
