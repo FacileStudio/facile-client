@@ -21,6 +21,11 @@
       "svelte": "./src/lib/theme.svelte.ts",
       "types": "./src/lib/theme.svelte.ts",
       "default": "./src/lib/theme.svelte.ts"
+    },
+    "./native": {
+      "svelte": "./src/lib/native.ts",
+      "types": "./src/lib/native.ts",
+      "default": "./src/lib/native.ts"
     }
   },
   "sideEffects": false,
