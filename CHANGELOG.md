@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `package.json` declares `"license": "MIT"`, matching `LICENSE`. The licence itself is unchanged.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

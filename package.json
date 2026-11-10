@@ -1,6 +1,7 @@
 {
   "name": "@facile/client",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Fetch kernel, 401 redirect, session store and theme store for Facile SvelteKit clients",
   "type": "module",
   "svelte": "./src/lib/index.ts",

@@ -114,4 +114,4 @@ muse's: it runs check, test and filet before a push.
 
 ## License
 
-MIT. See `LICENSE`.
+@facile/client is licensed under the [MIT License](LICENSE).
