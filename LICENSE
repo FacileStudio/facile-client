@@ -1,0 +1,43 @@
+MIT License
+
+Copyright (c) 2026 Facile Studio
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Third-party assets
+
+muse bundles no typeface.
+
+**Icon artwork is bundled** in `src/lib/icons-data.ts` — the paths for the 47 names in
+`src/lib/icons.ts`, frozen into the package so nothing is fetched from api.iconify.design at
+runtime. Both collections permit redistribution, and both require attribution:
+
+- **Solar** by 480 Design — CC BY 4.0 (CC-BY-4.0)
+  https://creativecommons.org/licenses/by/4.0/
+- **Material Design Icons** by Pictogrammers — Apache 2.0 (Apache-2.0)
+  https://github.com/Templarian/MaterialDesign/blob/master/LICENSE
+
+`scripts/build-icons.ts` refuses to bundle a collection whose licence metadata it cannot read,
+and `icon-data.test.ts` fails the build if a bundled collection is not credited here.
+
+If a typeface is reintroduced, record its licence here before the files are committed, and
+keep `src/lib/styles/fonts.test.ts` passing — muse is distributed to every Facile app, so a
+font added to this repo is a font redistributed thirteen times over.

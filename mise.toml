@@ -1,0 +1,14 @@
+[tools]
+bun = "latest"
+
+[tasks.check]
+description = "Type-check the package (svelte-check)"
+run = ["bun install", "bun run check"]
+
+[tasks.test]
+description = "Run every test (bun test)"
+run = "bun test"
+
+[tasks.build]
+description = "Package src/lib into dist/ with types (svelte-package)"
+run = "bun run build"
