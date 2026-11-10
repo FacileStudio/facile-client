@@ -62,6 +62,36 @@ describe('createApi', () => {
 		expect(error).toMatchObject({ status: 402, code: 'plan_limit', message: 'Upgrade', upgradeUrl: 'https://x/up' });
 	});
 
+	test('keeps the whole error object of the exact 402 body tronc writes as details', async () => {
+		const wire =
+			'{"error":{"code":"payment_required","message":"this plan has no seats left",' +
+			'"upgrade_url":"https://ardoise.facile.studio/billing"}}\n';
+		stub(() => new Response(wire, { status: 402, headers: { 'Content-Type': 'application/json' } }));
+		const error = (await createApi()('/x').catch((caught: unknown) => caught)) as ApiError;
+		expect(error).toMatchObject({
+			status: 402,
+			code: 'payment_required',
+			message: 'this plan has no seats left',
+			upgradeUrl: 'https://ardoise.facile.studio/billing'
+		});
+		expect(error.details).toEqual({
+			code: 'payment_required',
+			message: 'this plan has no seats left',
+			upgrade_url: 'https://ardoise.facile.studio/billing'
+		});
+	});
+
+	test('details carries fields tronc does not type, and is empty without an envelope', async () => {
+		stub(() => json(402, { error: { code: 'payment_required', message: 'm', key: 'monitors', limit: 5 } }));
+		const error = (await createApi()('/x').catch((caught: unknown) => caught)) as ApiError;
+		expect(error.details).toEqual({ code: 'payment_required', message: 'm', key: 'monitors', limit: 5 });
+		expect(Object.isFrozen(error.details)).toBe(true);
+		stub(() => new Response('<!doctype html>', { status: 500 }));
+		const bare = (await createApi()('/x').catch((caught: unknown) => caught)) as ApiError;
+		expect(bare.details).toEqual({});
+		expect(new ApiError(500, 'internal', 'boom').details).toEqual({});
+	});
+
 	test('falls back to the status when the body is not the envelope', async () => {
 		stub(() => new Response('<!doctype html>', { status: 500 }));
 		const error = await createApi()('/x').catch((caught: unknown) => caught);
