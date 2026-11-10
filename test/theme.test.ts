@@ -5,6 +5,12 @@ mock.module('$app/environment', () => ({ browser: true }));
 const classes = new Set<string>();
 const stored = new Map<string, string>();
 let prefersDark = true;
+const listeners = new Set<() => void>();
+
+function osTurns(dark: boolean): void {
+	prefersDark = dark;
+	for (const listener of listeners) listener();
+}
 
 Object.assign(globalThis, {
 	document: {
@@ -17,7 +23,13 @@ Object.assign(globalThis, {
 		setItem: (key: string, value: string) => stored.set(key, value)
 	},
 	window: Object.assign(globalThis.window ?? {}, {
-		matchMedia: () => ({ matches: prefersDark, addEventListener: () => {} })
+		matchMedia: () => ({
+			get matches() {
+				return prefersDark;
+			},
+			addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+			removeEventListener: (_: string, listener: () => void) => listeners.delete(listener)
+		})
 	})
 });
 
@@ -26,11 +38,13 @@ const { createTheme } = await import('../src/lib/theme.svelte');
 describe('createTheme', () => {
 	test('restore reads the app key and system writes neither class', () => {
 		stored.set('sonde-theme', 'bogus');
+		prefersDark = true;
 		const theme = createTheme('sonde-theme');
 		theme.restore();
 		expect(theme.mode).toBe('system');
 		expect([...classes]).toEqual([]);
 		expect(theme.resolved).toBe('dark');
+		theme.destroy();
 	});
 
 	test('set writes exactly one class and persists the choice', () => {
@@ -41,8 +55,10 @@ describe('createTheme', () => {
 		expect([...classes]).toEqual(['dark']);
 		expect(stored.get('sonde-theme')).toBe('dark');
 		prefersDark = false;
-		createTheme('sonde-theme').restore();
+		const restored = createTheme('sonde-theme');
+		restored.restore();
 		expect([...classes]).toEqual(['dark']);
+		restored.destroy();
 	});
 });
 
@@ -64,5 +80,42 @@ describe('v0.1 default theme classes, pinned', () => {
 			'dark-os light: light',
 			'dark-os dark: dark'
 		]);
+	});
+});
+
+describe('createTheme in system mode', () => {
+	test('by default writes no class and keeps writing none as the OS turns', () => {
+		stored.set('muse-theme', 'system');
+		prefersDark = false;
+		const theme = createTheme('muse-theme');
+		theme.restore();
+		expect([...classes]).toEqual([]);
+		osTurns(true);
+		expect([...classes]).toEqual([]);
+		expect(theme.resolved).toBe('dark');
+		theme.destroy();
+		expect(listeners.size).toBe(0);
+	});
+
+	test('with resolveSystem writes the OS class, follows it, and stops when destroyed', () => {
+		stored.set('plume.theme', 'system');
+		prefersDark = true;
+		const theme = createTheme('plume.theme', { resolveSystem: true });
+		theme.restore();
+		theme.restore();
+		expect(listeners.size).toBe(1);
+		expect([...classes]).toEqual(['dark']);
+		osTurns(false);
+		expect([...classes]).toEqual(['light']);
+		expect(theme.resolved).toBe('light');
+		theme.set('dark');
+		osTurns(false);
+		expect([...classes]).toEqual(['dark']);
+		theme.set('system');
+		expect([...classes]).toEqual(['light']);
+		theme.destroy();
+		expect(listeners.size).toBe(0);
+		osTurns(true);
+		expect([...classes]).toEqual(['light']);
 	});
 });
