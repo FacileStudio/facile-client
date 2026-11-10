@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
+### Added
+
+- `@facile/client/native`: `createNativeApi({ origin, base, token, onUnauthorized })` for Tauri and Capacitor shells. It needs a bare https origin (http only on localhost), sends `Authorization: Bearer` from `token()` on every request unless the caller set one, sends `credentials: 'omit'` and never sends `X-Facile-CSRF`. Errors, 204 and `quiet` behave as in `createApi`, and it waits for an async `onUnauthorized`. The root entry does not export it, still refuses an absolute `base` and never reads a token.
+- `ApiError.details`: the envelope's whole `error` object, frozen, with every field the server sent, so `planLimitFrom(error.details)` reads a 402 with no second fetch. It is empty when the body was not the envelope. The typed fields are unchanged.
+- `createTheme(key, { resolveSystem: true })`: in `system` mode the store writes `.dark` or `.light` to match the OS and follows it, for apps with Tailwind `dark:` utilities. Without the option the classes are muse's contract, as before.
+- `ThemeStore.destroy()`: removes the OS-preference listener `restore()` adds.
+- `invitationsFrom(body)` in the root entry: maps a `/api/me/invitations` answer to `{ count, href }`, or `null` without an `href`, which is what muse's `UserMenu` takes.
+
+### Changed
+
+- The README documents the pre-paint `app.html` script for each theme mode, the native entry and its token storage rule, `mePath` for an app with no `/api/auth/me`, and `invitationsFrom`.
+- Tests pin the default request and the default theme classes of v0.1.1.
+
 ## [0.1.1] - 2026-11-10
 
 ### Added
