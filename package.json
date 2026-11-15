@@ -1,6 +1,6 @@
 {
   "name": "@facile/client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "description": "Fetch kernel, core transport helpers, locale resolver, session and theme stores for Facile clients",
   "type": "module",

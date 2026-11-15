@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
 ### Added
 
 - `@facile/client/core`: the fetch kernel, `ApiError`, CSRF handling and the tronc envelope parser with no `$app/*` or Svelte import, for React and other non-SvelteKit code. The root entry re-exports it and adds `redirectToLogin`.
