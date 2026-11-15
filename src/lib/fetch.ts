@@ -1,4 +1,6 @@
 import { ApiError, isUnauthorized, readBody, toApiError } from './errors.js';
+import { send } from './transport.js';
+import { resolveUnauthorized, type UnauthorizedHandler, type UnauthorizedPolicy } from './unauthorized.js';
 
 export { ApiError, isUnauthorized };
 export type { ErrorDetails } from './errors.js';
@@ -11,7 +13,9 @@ const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** How `createApi` reaches the API and what it does when the session is refused. */
 export type ApiOptions = {
 	base?: string;
-	onUnauthorized?: (response: Response) => void;
+	onUnauthorized?: UnauthorizedHandler;
+	unauthorized?: UnauthorizedPolicy;
+	ssoPath?: string;
 };
 
 /** Per-call switches. `quiet` keeps a 401 from reaching `onUnauthorized`, for a session probe. */
@@ -35,18 +39,26 @@ export function buildHeaders(init: RequestInit): Headers {
 }
 
 /**
- * Turns one response into the call's result, the same way for every entry point: a 401 not
- * marked `quiet` reaches `onUnauthorized`, a non-2xx answer throws `ApiError`, and a 2xx body
- * is parsed.
+ * Gates one response the same way for every entry point: a 401 not marked `quiet` reaches
+ * `onUnauthorized`, and a non-2xx answer throws `ApiError`. A 2xx response is returned unread.
  */
+export async function check(
+	response: Response,
+	call: CallOptions,
+	onUnauthorized?: UnauthorizedHandler
+): Promise<Response> {
+	if (response.status === 401 && !call.quiet) await onUnauthorized?.(response);
+	if (!response.ok) throw await toApiError(response);
+	return response;
+}
+
+/** `check`, then the parsed 2xx body: `undefined` for an empty one. */
 export async function settle<T>(
 	response: Response,
 	call: CallOptions,
-	onUnauthorized?: (response: Response) => void | Promise<void>
+	onUnauthorized?: UnauthorizedHandler
 ): Promise<T> {
-	if (response.status === 401 && !call.quiet) await onUnauthorized?.(response);
-	if (!response.ok) throw await toApiError(response);
-	return readBody<T>(response);
+	return readBody<T>(await check(response, call, onUnauthorized));
 }
 
 /** Returns `base` without its trailing slash, or throws when it is not a same-origin path. */
@@ -65,12 +77,13 @@ export function checkBase(base: string): string {
  */
 export function createApi(options: ApiOptions = {}): Api {
 	const base = checkBase(options.base ?? '/api');
+	const onUnauthorized = resolveUnauthorized(options);
 	return async function api<T>(path: string, init: RequestInit = {}, call: CallOptions = {}): Promise<T> {
-		const response = await fetch(`${base}${path}`, {
+		const response = await send(`${base}${path}`, {
 			...init,
 			headers: buildHeaders(init),
 			credentials: 'same-origin'
 		});
-		return settle<T>(response, call, options.onUnauthorized);
+		return settle<T>(response, call, onUnauthorized);
 	};
 }

@@ -3,6 +3,9 @@ import { parseRetryAfter } from './retry-after.js';
 /** The `error` object of tronc's envelope, every field the server sent, untyped. */
 export type ErrorDetails = Readonly<Record<string, unknown>>;
 
+/** The `code` of the `ApiError` thrown when the request got no answer at all. */
+export const NETWORK_CODE = 'network';
+
 const NO_DETAILS: ErrorDetails = Object.freeze({});
 
 /**
@@ -55,13 +58,23 @@ function parseEnvelope(body: string): ErrorDetails {
 	}
 }
 
+/** Builds an `ApiError` from a status, a raw body and a Retry-After header value, as `toApiError` does. */
+export function apiErrorFrom(status: number, body: string, retryAfter: string | null = null): ApiError {
+	const details = parseEnvelope(body);
+	const message = text(details.message) || `Request failed with status ${status}`;
+	const upgradeUrl = text(details.upgrade_url) || undefined;
+	return new ApiError(status, text(details.code), message, upgradeUrl, parseRetryAfter(retryAfter), details);
+}
+
 /** Reads a failed response into an `ApiError`, keeping the envelope's `error` object as `details`. */
 export async function toApiError(response: Response): Promise<ApiError> {
-	const details = parseEnvelope(await response.text().catch(() => ''));
-	const message = text(details.message) || `Request failed with status ${response.status}`;
-	const upgradeUrl = text(details.upgrade_url) || undefined;
-	const retryAfter = parseRetryAfter(response.headers.get('Retry-After'));
-	return new ApiError(response.status, text(details.code), message, upgradeUrl, retryAfter, details);
+	const body = await response.text().catch(() => '');
+	return apiErrorFrom(response.status, body, response.headers.get('Retry-After'));
+}
+
+/** The error for a request that never got an answer: status 0, code `network`. */
+export function networkError(): ApiError {
+	return new ApiError(0, NETWORK_CODE, 'Network error');
 }
 
 /** Resolves a 2xx body: `undefined` for a 204 or an empty body, the parsed JSON otherwise. */

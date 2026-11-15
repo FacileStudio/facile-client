@@ -7,10 +7,10 @@ store. UI components live in `@facile/muse`, not here.
 It ships TypeScript source, like muse. Consumers install it by git tag:
 
 ```json
-"@facile/client": "github:FacileStudio/facile-client#v0.2.0"
+"@facile/client": "github:FacileStudio/facile-client#v0.3.0"
 ```
 
-Entry points: `.` (`src/lib/index.ts`), `./session`, `./theme` and `./native`. Add a new one to
+Entry points: `.` (`src/lib/index.ts`), `./core` and `./locale` (no `$app/*`, no Svelte: keep it that way), `./session`, `./theme` and `./native`. Add a new one to
 `exports` in `package.json`, never a deep import path.
 
 ## Commands

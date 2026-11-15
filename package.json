@@ -2,7 +2,7 @@
   "name": "@facile/client",
   "version": "0.2.0",
   "license": "MIT",
-  "description": "Fetch kernel, 401 redirect, session store and theme store for Facile SvelteKit clients",
+  "description": "Fetch kernel, core transport helpers, locale resolver, session and theme stores for Facile clients",
   "type": "module",
   "svelte": "./src/lib/index.ts",
   "main": "./src/lib/index.ts",
@@ -11,6 +11,16 @@
       "svelte": "./src/lib/index.ts",
       "types": "./src/lib/index.ts",
       "default": "./src/lib/index.ts"
+    },
+    "./core": {
+      "svelte": "./src/lib/core.ts",
+      "types": "./src/lib/core.ts",
+      "default": "./src/lib/core.ts"
+    },
+    "./locale": {
+      "svelte": "./src/lib/locale.ts",
+      "types": "./src/lib/locale.ts",
+      "default": "./src/lib/locale.ts"
     },
     "./session": {
       "svelte": "./src/lib/session.svelte.ts",
@@ -57,6 +67,8 @@
     "facile",
     "fetch",
     "session",
-    "theme"
+    "theme",
+    "locale",
+    "core"
   ]
 }

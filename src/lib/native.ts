@@ -1,4 +1,5 @@
 import { ApiError, isUnauthorized } from './errors.js';
+import { send } from './transport.js';
 import { CSRF_HEADER, buildHeaders, checkBase, settle, type Api, type CallOptions } from './fetch.js';
 
 export { ApiError, isUnauthorized };
@@ -56,7 +57,7 @@ async function nativeHeaders(init: RequestInit, token: () => Promise<string | nu
 export function createNativeApi(options: NativeApiOptions): Api {
 	const root = `${checkOrigin(options.origin)}${checkBase(options.base ?? '/api')}`;
 	return async function api<T>(path: string, init: RequestInit = {}, call: CallOptions = {}): Promise<T> {
-		const response = await fetch(`${root}${path}`, {
+		const response = await send(`${root}${path}`, {
 			...init,
 			headers: await nativeHeaders(init, options.token),
 			credentials: 'omit'

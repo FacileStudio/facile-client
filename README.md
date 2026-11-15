@@ -1,7 +1,8 @@
 # @facile/client
 
-The browser half of the Facile suite contract, for SvelteKit clients. It holds the fetch kernel,
-the shared 401 redirect, a session store and a theme store. Sixteen clients each carried their own
+The browser half of the Facile suite contract. It holds the fetch kernel, the shared 401 handling,
+a locale resolver, a session store and a theme store, for SvelteKit clients and, through
+`@facile/client/core`, any other client. Sixteen clients each carried their own
 copy of these in `src/lib/backend.ts` and `theme.svelte.ts`.
 
 It ships no UI. Components live in [`@facile/muse`](https://github.com/FacileStudio/muse).
@@ -9,7 +10,7 @@ It ships no UI. Components live in [`@facile/muse`](https://github.com/FacileStu
 ## Install
 
 ```sh
-bun add "github:FacileStudio/facile-client#v0.2.0"
+bun add "github:FacileStudio/facile-client#v0.3.0"
 ```
 
 The package is consumed from source, like muse: there is no build step on install. `svelte` 5 and
@@ -72,7 +73,9 @@ invitations = await api('/me/invitations', {}, { quiet: true }).then(invitations
 
 | Import | Gives you |
 |---|---|
-| `@facile/client` | `createApi`, `ApiError`, `isUnauthorized`, `CSRF_HEADER`, `redirectToLogin`, `loginTarget`, `invitationsFrom` |
+| `@facile/client` | everything in `/core`, plus `redirectToLogin` (the SvelteKit soft navigation) |
+| `@facile/client/core` | no `$app/*`, no Svelte: `createApi`, `createBlobApi`, `saveBlob`, `uploadWithProgress`, `ApiError`, `isUnauthorized`, `CSRF_HEADER`, `NETWORK_CODE`, `redirectToSso`, `refusesOwnSession`, `probeSession`, `authConfig`, `spaceQuery`, `withSpace`, `forgetLegacyTokens`, `invitationsFrom`, `loginTarget` |
+| `@facile/client/locale` | no Svelte: `resolveLocale`, `resolveServerLocale`, `resolveClientLocale`, `rememberLocale`, `localeCookie`, `matchLocale`, `readCookie`, `LOCALE_COOKIE` |
 | `@facile/client/session` | `createSession<User>(api)`: `user`, `loading`, `refresh()`, `logout()` as runes state |
 | `@facile/client/theme` | `createTheme(key, { resolveSystem })`: `mode`, `resolved`, `restore()`, `set(mode)`, `destroy()` as runes state |
 | `@facile/client/native` | `createNativeApi({ origin, token, onUnauthorized })`, for Tauri and Capacitor shells only |
@@ -129,6 +132,117 @@ With `resolveSystem: true` (always one class):
 ```html
 <script>(function(){var t;try{t=localStorage.getItem('plume.theme')}catch(e){}if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.add(t)})()</script>
 ```
+
+## Core: `@facile/client/core`
+
+The root entry re-exports `core` unchanged and adds `redirectToLogin`, which needs `$app/*`. Code
+with no SvelteKit (a React app, a worker, a test) imports `@facile/client/core`, which pulls in
+neither `$app/*` nor Svelte.
+
+**Network failures.** A request that gets no answer (offline, DNS, CORS, a reset) throws
+`ApiError` with `status` 0 and `code` `'network'` (`NETWORK_CODE`), not the browser's bare
+`TypeError`. An abort keeps its own `AbortError`.
+
+**The 401 policy.** `createApi({ unauthorized })` takes one of three values. `onUnauthorized` still
+works and wins when both are given. With neither, a 401 only throws, as before.
+
+| Value | On a 401 |
+|---|---|
+| `'login'` | replaces the page with `/login?next=<path+search>` (full load; not on `/login`) |
+| `'sso'` | replaces the page with `ssoPath` (default `/api/auth/oidc`), for apps with no login page |
+| `(response) => void` | your hook, which may return a promise the call waits for |
+
+A SvelteKit app that wants a client-side navigation keeps `onUnauthorized: redirectToLogin`.
+
+```ts
+createApi({ unauthorized: 'sso' });
+createApi({ unauthorized: 'sso', ssoPath: '/auth/oidc' });
+createApi({ unauthorized: (response) => clearToken() });
+```
+
+**Own-session refusal.** `refusesOwnSession(err)` is true for porte's 403 `permission_denied`
+"only the person's own session can confirm actions", which signing in again fixes. It takes any
+`unknown`, so it works with an `ApiError` or a rewrapped copy.
+
+**Session probe, `/auth/config`, spaces.**
+
+```ts
+const me = await probeSession<User>(api);
+const config = await authConfig(api);
+await api(withSpace('/ideas', spaceId));
+```
+
+- `probeSession(api, path = '/auth/me')` is quiet, maps 401 and 403 to `null`, and rethrows
+  anything else, so a network blip is not read as a logout.
+- `authConfig(api)` reads `GET /auth/config`, quiet, and throws `ApiError` on failure. Pass your
+  app's own keys as the type parameter: `authConfig<Config>(api)`.
+- `spaceQuery(id)` is `''` for `null`, `undefined` or `''` and `?space_id=<id>` otherwise (URL
+  encoded, `0` counts as an id). `withSpace(path, id)` picks `?` or `&`.
+- `forgetLegacyTokens(['plume.token', 'token'])` deletes old bearer tokens from `localStorage`
+  and never throws on blocked storage. Pass a storage as the second argument to test it.
+
+**Downloads and uploads.**
+
+```ts
+const download = createBlobApi({ unauthorized: 'login' });
+saveBlob(await download('/documents/3/certificate'), 'certificate.pdf');
+
+await uploadWithProgress('/api/files', form, { onProgress: (loaded, total) => (percent = (loaded / total) * 100) });
+```
+
+`createBlobApi` takes the same options as `createApi` and resolves to a `Blob`. `uploadWithProgress`
+uses XMLHttpRequest because `fetch` has no upload progress. It sends the cookie and the CSRF
+header (`csrf: false` drops it), takes `headers` (a native shell's bearer token), `method` and
+`signal`, rejects with the same `ApiError`, and resolves to the parsed JSON.
+
+## Locale: `@facile/client/locale`
+
+One resolver, one order, for every app. It replaces the `cookieLocale()` / `localeSource()` /
+`rememberLocale()` block copied into about 19 apps, which had three different orders.
+
+1. Explicit URL locale (a route prefix such as `/en`, or `?lang=`)
+2. The signed-in user's profile locale
+3. The stored visitor choice, the `fc_locale` cookie
+4. The browser language (`Accept-Language` on the server, `navigator.languages` in the browser)
+5. English. Never French as a silent default.
+
+A source that is missing, or names a locale the app does not support, is skipped. The app passes
+its `supported` list, which must include `en`.
+
+```ts
+const supported = ['en', 'fr', 'es', 'de'] as const;
+
+const { locale, hint } = resolveServerLocale({
+	supported,
+	url: event.url,
+	cookie: event.request.headers.get('cookie'),
+	acceptLanguage: event.request.headers.get('accept-language'),
+	profile: event.locals.user?.locale
+});
+
+const resolved = resolveClientLocale({ supported, profile: session.locale });
+```
+
+`resolveLocale({ supported, url, profile, stored, browser })` is the pure core, and returns
+`{ locale, origin, hint }`. `origin` is `url`, `profile`, `cookie`, `browser` or `default`. `hint`
+is `locale`, or `null` when `origin` is `default`.
+
+**Feeding muse.** Pass the hint, not the locale: `provideLocale(() => resolved.hint)`. muse then
+reports `I18n.known` as `false` for a visitor who chose nothing and whose browser said nothing, so
+its sign-up, pricing and sign-in links add no `?lang=` or `ui_locales`. Passing the English
+fallback as a locale makes `known` true and pins the account to English. `createTranslator`
+and muse's own `resolveLocale` keep doing their job on the hint; this resolver only decides what
+to hand them. muse's `matchLocale` knows exactly four locales, so the supported list lives here.
+
+**Writing the choice.** `rememberLocale(locale)` writes `fc_locale` for a year. Under
+`facile.studio` or any subdomain it writes `Domain=.facile.studio`, so a choice made on one app
+reaches the others, and deletes the old host-only cookie that would shadow it. Anywhere else
+(a self-hoster, localhost) it writes a host-only cookie. On a server, set the header with
+`localeCookie(locale, { hostname, secure })`. `localeCookieDomain(hostname, parents)` takes other
+parent domains if a deployment needs them.
+
+`readCookie` returns the first `fc_locale` it finds. A visitor who still carries an old host-only
+cookie and a new shared one sends both; the next `rememberLocale` call removes the old one.
 
 ## Native shells: `@facile/client/native`
 
