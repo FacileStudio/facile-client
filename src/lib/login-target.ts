@@ -1,0 +1,11 @@
+/** The login page the shared 401 handler sends people to. */
+export const LOGIN_PATH = '/login';
+
+/**
+ * Returns `/login?next=<path+search>` for `location`, or `null` when it is already the login
+ * page: that page probes the session itself, and a 401 there is the expected answer.
+ */
+export function loginTarget(location: Pick<Location, 'pathname' | 'search'>): string | null {
+	if (location.pathname === LOGIN_PATH) return null;
+	return `${LOGIN_PATH}?next=${encodeURIComponent(location.pathname + location.search)}`;
+}

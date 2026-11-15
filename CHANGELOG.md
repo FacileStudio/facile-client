@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@facile/client/core`: the fetch kernel, `ApiError`, CSRF handling and the tronc envelope parser with no `$app/*` or Svelte import, for React and other non-SvelteKit code. The root entry re-exports it and adds `redirectToLogin`.
+- A request that gets no answer throws `ApiError` with status 0 and code `network` (`NETWORK_CODE`) instead of the browser's `TypeError`. Aborts pass through.
+- `createApi({ unauthorized: 'login' | 'sso' | hook, ssoPath })`, the three 401 behaviours of the suite. `onUnauthorized` still works and wins. Default unchanged: a 401 only throws.
+- `refusesOwnSession`, `OWN_SESSION_REFUSAL`, `probeSession`, `authConfig`, `spaceQuery`, `withSpace`, `forgetLegacyTokens`, `createBlobApi`, `saveBlob`, `uploadWithProgress`, `redirectToSso`, `SSO_PATH`.
+- `@facile/client/locale`: `resolveLocale`, `resolveServerLocale`, `resolveClientLocale`, `matchLocale`, `readCookie`, `rememberLocale`, `localeCookie`, `localeCookieDomain`. One order: URL, profile, `fc_locale` cookie, browser, English. The cookie is written for `.facile.studio` when the app is served under it.
+- `MIGRATION.md` maps each hand-written copy in the apps to its import.
+
+### Changed
+
+- `loginTarget` and `LOGIN_PATH` live in a file with no `$app/*` import. Their exports and behaviour are unchanged.
+
 ## [0.2.0] - 2026-11-10
 
 ### Added
